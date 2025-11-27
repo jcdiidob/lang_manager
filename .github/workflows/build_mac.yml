@@ -10,20 +10,21 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout Repo
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install Dependencies
         run: |
-          pip install --upgrade pip
-          pip install psutil keyboard pyobjc py2app
+          python3 -m pip install --upgrade pip
+          python3 -m pip install psutil keyboard pyobjc py2app
+          python3 -m pip install Quartz
 
-      - name: Build macOS App
+      - name: Build macOS App with py2app
         run: |
           python3 setup.py py2app
 

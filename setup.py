@@ -4,8 +4,24 @@ APP = ['language_monitor.py']
 
 OPTIONS = {
     'argv_emulation': True,
-    'packages': ['psutil', 'keyboard'],
-    'includes': ['AppKit', 'Foundation'],
+    'packages': [
+        'psutil',
+        'keyboard'
+    ],
+    'includes': [
+        'AppKit',
+        'Foundation',
+        'Quartz',
+        'subprocess',
+        'ctypes',
+        'json',
+        'plistlib',
+    ],
+    'frameworks': [
+        '/System/Library/Frameworks/AppKit.framework',
+        '/System/Library/Frameworks/Foundation.framework',
+        '/System/Library/Frameworks/Quartz.framework'
+    ],
     'plist': {
         'CFBundleName': 'Language Monitor',
         'CFBundleDisplayName': 'Language Monitor',
