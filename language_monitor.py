@@ -197,51 +197,83 @@ if IS_MAC:
 #                      MAIN MONITOR LOOP                     #
 ##############################################################
 
-def monitor_language_switching(interval=0.2, save_interval=120):
+##############################################################
+#                      MAIN MONITOR LOOP                     #
+##############################################################
+
+def log(tag, msg):
+    """Nice formatted logger."""
+    print(f"[{tag}] {msg}")
+
+def monitor_language_switching(interval=0.2, save_interval=60):
     state = load_state()
     last_save = time.time()
     prv_process = ""
 
-    print("Monitoring started...\n")
+    log("SYS", "Monitoring started...\n")
 
     while True:
         info = get_active_window_info()
         current_process = info["process_name"]
         current_lang = get_current_keyboard_language()
 
+        # log current scan
+        log("SCAN", f"Process={current_process}, Lang={current_lang}")
+
+        # find similar process
         similar = find_similar_key(current_process, state)
-        if similar:
+        if similar and similar != current_process:
+            log("MATCH", f"Matched process '{current_process}' → '{similar}'")
             current_process = similar
 
+        # new process in state
         if current_process not in state:
             state[current_process] = {"EN": 0, "HE": 0, "last_lang": current_lang}
+            log("NEW", f"Created state entry for '{current_process}'")
 
+        # process switched (user changed windows)
         if current_process != prv_process:
+            log("PROC", f"Switched to process: {current_process}")
             prv_process = current_process
+
             counts = state[current_process]["EN"] + state[current_process]["HE"]
 
             if counts > 3:
-                if state[current_process]["EN"] / counts > 0.7:
+                en_ratio = state[current_process]["EN"] / counts
+                he_ratio = state[current_process]["HE"] / counts
+
+                log("STAT", f"History for {current_process}: EN={state[current_process]['EN']}, HE={state[current_process]['HE']}")
+
+                if en_ratio > 0.7:
+                    log("AUTO", "Auto-setting language → EN")
                     set_language("EN")
                     state[current_process]["last_lang"] = "EN"
 
-                elif state[current_process]["HE"] / counts > 0.7:
+                elif he_ratio > 0.7:
+                    log("AUTO", "Auto-setting language → HE")
                     set_language("HE")
                     state[current_process]["last_lang"] = "HE"
 
             continue
 
+        # language changed inside same process
         if state[current_process]["last_lang"] != current_lang:
+            old = state[current_process]["last_lang"]
+            log("SWITCH", f"Language changed {old} → {current_lang}")
+
             if current_lang in ("EN", "HE"):
                 state[current_process][current_lang] += 1
+
+            log("STATE", f"Updated counts: {state[current_process]}")
             state[current_process]["last_lang"] = current_lang
 
+        # periodic save
         if time.time() - last_save >= save_interval:
             save_state(state)
+            log("SAVE", "State written to disk.")
             last_save = time.time()
 
         time.sleep(interval)
-
 
 ##############################################################
 #                           RUN                              #
