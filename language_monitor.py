@@ -225,7 +225,9 @@ def monitor_language_switching(interval=0.2, save_interval=60):
         info = get_active_window_info()
         current_process = info["process_name"]
         current_lang = get_current_keyboard_language()
-
+        print(current_process)
+        print(current_lang)
+        print(state)
         similar = find_similar_key(current_process, state)
         if similar:
             current_process = similar
