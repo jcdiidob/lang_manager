@@ -22,7 +22,7 @@ from difflib import SequenceMatcher
 IS_WIN = platform.system() == "Windows"
 IS_MAC = platform.system() == "Darwin"
 
-STATE_FILE = "language_state.json"
+STATE_FILE = "../langg/language_state.json"
 
 
 ##############################################################
