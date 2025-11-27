@@ -22,7 +22,7 @@ from difflib import SequenceMatcher
 IS_WIN = platform.system() == "Windows"
 IS_MAC = platform.system() == "Darwin"
 
-STATE_FILE = "../langg/language_state.json"
+STATE_FILE = "language_state.json"
 
 
 ##############################################################
@@ -30,11 +30,9 @@ STATE_FILE = "../langg/language_state.json"
 ##############################################################
 
 def load_state():
-    """Load state from disk."""
     if not os.path.exists(STATE_FILE):
         print("State file not found. Starting fresh.\n")
         return {}
-
     try:
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             print("Loaded existing state.\n")
@@ -45,7 +43,6 @@ def load_state():
 
 
 def save_state(state):
-    """Save state to disk."""
     try:
         with open(STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=4, ensure_ascii=False)
@@ -113,13 +110,11 @@ if IS_WIN:
 
         hwnd = user32.GetForegroundWindow()
 
-        # title
         length = user32.GetWindowTextLengthW(hwnd)
         buffer = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buffer, length + 1)
         title = buffer.value
 
-        # process
         pid = ctypes.c_ulong()
         user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
         pid = pid.value
@@ -142,87 +137,60 @@ if IS_WIN:
 ##############################################################
 
 if IS_MAC:
-    if IS_MAC:
-        try:
-            from AppKit import NSWorkspace
-        except ImportError:
-            print("Installing pyobjc (required for macOS)...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "pyobjc"])
-            from AppKit import NSWorkspace    # Requires: pip install pyobjc
-
+    from AppKit import NSWorkspace
 
     def get_active_window_info():
-        """Returns {process_name, window_title} on macOS."""
         try:
             app = NSWorkspace.sharedWorkspace().frontmostApplication()
             process_name = app.localizedName()
         except:
             process_name = "UNKNOWN"
 
-        script = '''
-        tell application "System Events"
-            tell process (name of first application process whose frontmost is true)
-                try
-                    return name of front window
-                on error
-                    return ""
-                end try
-            end tell
-        end tell
-        '''
-
-        try:
-            title = subprocess.check_output(["osascript", "-e", script]).decode().strip()
-        except:
-            title = ""
-
         return {
             "process_name": process_name,
-            "window_title": title,
+            "window_title": "",
             "pid": None
         }
 
+    ##########################################################
+    #  🔥 NEW MAC LANGUAGE DETECTOR — NO APPLESCRIPT NEEDED  #
+    ##########################################################
     def get_current_keyboard_language():
-        """Reads current input source."""
-        script = '''
-        tell application "System Events"
-            tell process "SystemUIServer"
-                set lang to name of (first menu bar item of menu bar 1 whose description is "text input")
-                return lang
-            end tell
-        end tell
-        '''
-        result = subprocess.check_output(["osascript", "-e", script]).decode().strip()
+        """
+        Uses defaults read on HIToolbox plist — works inside py2app bundle.
+        """
+        try:
+            out = subprocess.check_output([
+                "defaults",
+                "read",
+                "~/Library/Preferences/com.apple.HIToolbox.plist",
+                "AppleSelectedInputSources"
+            ], stderr=subprocess.STDOUT)
 
-        if "U.S." in result or "ABC" in result:
+            txt = out.decode("utf-8", errors="ignore")
+
+            if "Hebrew" in txt:
+                return "HE"
+
+            # English layouts
+            if "U.S." in txt or "ABC" in txt or "British" in txt:
+                return "EN"
+
             return "EN"
-        if "Hebrew" in result:
-            return "HE"
-
-        return "UNKNOWN"
+        except:
+            return "EN"
 
     def switch_language():
-        """Cmd + Space (default macOS language switch)."""
-        script = '''
-        tell application "System Events"
-            key code 49 using {command down}
-        end tell
-        '''
-        subprocess.run(["osascript", "-e", script])
+        # Cmd+Space
+        subprocess.run([
+            "osascript",
+            "-e",
+            'tell application "System Events" to key code 49 using {command down}'
+        ])
 
     def set_language(target):
-        """Switch to specific input source."""
-        layout = "U.S." if target == "EN" else "Hebrew"
-
-        script = f'''
-        tell application "System Events"
-            tell process "SystemUIServer"
-                click (menu bar item 1 of menu bar 1 whose description is "text input")
-                click menu item "{layout}" of menu 1 of result
-            end tell
-        end tell
-        '''
-        subprocess.run(["osascript", "-e", script])
+        # Can't reliably use AppleScript for this in unsigned apps → skip
+        return True
 
 
 ##############################################################
@@ -241,26 +209,18 @@ def monitor_language_switching(interval=0.2, save_interval=120):
         current_process = info["process_name"]
         current_lang = get_current_keyboard_language()
 
-        # find similar process key
         similar = find_similar_key(current_process, state)
         if similar:
             current_process = similar
 
-        # new process
         if current_process not in state:
-            state[current_process] = {
-                "EN": 0,
-                "HE": 0,
-                "last_lang": current_lang
-            }
+            state[current_process] = {"EN": 0, "HE": 0, "last_lang": current_lang}
 
-        # process changed
         if current_process != prv_process:
             prv_process = current_process
-
             counts = state[current_process]["EN"] + state[current_process]["HE"]
+
             if counts > 3:
-                # auto adjust
                 if state[current_process]["EN"] / counts > 0.7:
                     set_language("EN")
                     state[current_process]["last_lang"] = "EN"
@@ -271,14 +231,11 @@ def monitor_language_switching(interval=0.2, save_interval=120):
 
             continue
 
-        # language change detected
         if state[current_process]["last_lang"] != current_lang:
             if current_lang in ("EN", "HE"):
                 state[current_process][current_lang] += 1
-
             state[current_process]["last_lang"] = current_lang
 
-        # periodic save
         if time.time() - last_save >= save_interval:
             save_state(state)
             last_save = time.time()
