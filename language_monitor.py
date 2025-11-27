@@ -1,191 +1,119 @@
 ##############################################################
-#               CROSS PLATFORM LANGUAGE MONITOR              #
-#              macOS (FN Key + Quartz) + Windows            #
+#                  MACOS LANGUAGE + FN DETECTOR             #
 ##############################################################
 
 import os
-import json
-import sys
 import time
-import platform
-import ctypes
-import psutil
 import subprocess
-import keyboard
+import platform
 from difflib import SequenceMatcher
 
-##############################################################
-#                       OS Detection                         #
-##############################################################
-
-IS_WIN = platform.system() == "Windows"
 IS_MAC = platform.system() == "Darwin"
 
 ##############################################################
-#                   Persistent State File                    #
+#               persistent state location (mac)              #
 ##############################################################
-
-if IS_MAC:
-    BASE_DIR = os.path.expanduser("~/Library/Application Support/LanguageMonitor")
-else:
-    BASE_DIR = os.path.expanduser("./")
-
+BASE_DIR = os.path.expanduser("~/Library/Application Support/LanguageMonitor")
 os.makedirs(BASE_DIR, exist_ok=True)
 STATE_FILE = os.path.join(BASE_DIR, "language_state.json")
 
+##############################################################
+#                        Debug print                         #
+##############################################################
+import sys
+def dprint(*msg):
+    print("[DEBUG]", *msg)
+    sys.stdout.flush()
 
-def load_state():
-    if not os.path.exists(STATE_FILE):
-        return {}
+##############################################################
+#                MAC: Read language from system             #
+##############################################################
+def read_system_language():
+    """
+    Reads the CURRENT keyboard layout from HIToolbox plist.
+    Works even inside py2app.
+    """
     try:
-        with open(STATE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+        out = subprocess.check_output([
+            "defaults", "read",
+            "~/Library/Preferences/com.apple.HIToolbox.plist",
+            "AppleSelectedInputSources"
+        ], stderr=subprocess.STDOUT)
+
+        txt = out.decode("utf-8", errors="ignore")
+
+        if "Hebrew" in txt:
+            return "HE"
+        if "U.S." in txt or "ABC" in txt:
+            return "EN"
+        return "EN"
     except:
-        return {}
-
-
-def save_state(state):
-    try:
-        with open(STATE_FILE, "w", encoding="utf-8") as f:
-            json.dump(state, f, indent=4, ensure_ascii=False)
-    except:
-        pass
+        return "EN"
 
 
 ##############################################################
-#                      Similarity Logic                      #
+#                MAC: FN/Globe Key Listener                 #
 ##############################################################
-
-def similarity(a, b):
-    return SequenceMatcher(None, a, b).ratio()
-
-
-def find_similar_key(target, state, threshold=0.7):
-    best_key = None
-    best_score = 0.0
-    for key in state.keys():
-        score = similarity(target, key)
-        if score > best_score and score >= threshold:
-            best_key = key
-            best_score = score
-    return best_key
-
-
-##############################################################
-#                     WINDOWS IMPLEMENTATION                 #
-##############################################################
-
-if IS_WIN:
-
-    def get_current_keyboard_language():
-        user32 = ctypes.WinDLL('user32', use_last_error=True)
-        hwnd = user32.GetForegroundWindow()
-        thread_id = user32.GetWindowThreadProcessId(hwnd, 0)
-        klid = user32.GetKeyboardLayout(thread_id)
-        lang_id = klid & 0xffff
-        return {0x0409: "EN", 0x040D: "HE"}.get(lang_id, "UNKNOWN")
-
-    def switch_language():
-        keyboard.press('alt')
-        time.sleep(0.02)
-        keyboard.press_and_release('shift')
-        time.sleep(0.02)
-        keyboard.release('alt')
-
-    def set_language(target):
-        for _ in range(10):
-            if get_current_keyboard_language() == target:
-                return True
-            switch_language()
-            time.sleep(0.05)
-        return False
-
-    def get_active_window_info():
-        user32 = ctypes.windll.user32
-
-        hwnd = user32.GetForegroundWindow()
-
-        length = user32.GetWindowTextLengthW(hwnd)
-        buffer = ctypes.create_unicode_buffer(length + 1)
-        user32.GetWindowTextW(hwnd, buffer, length + 1)
-        title = buffer.value
-
-        pid = ctypes.c_ulong()
-        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-        pid = pid.value
-
-        try:
-            proc = psutil.Process(pid)
-            process_name = proc.name()
-        except:
-            process_name = "UNKNOWN"
-
-        return {
-            "process_name": process_name,
-            "window_title": title,
-        }
-
-
-##############################################################
-#                   macOS IMPLEMENTATION                    #
-##############################################################
-
 if IS_MAC:
     from Quartz import (
-        CGEventTapCreate,
-        kCGHeadInsertEventTap,
-        kCGEventKeyDown,
-        CGEventTapEnable,
-        CFMachPortCreateRunLoopSource,
-        CFRunLoopAddSource,
-        CFRunLoopRun,
-        CGWindowListCopyWindowInfo,
-        kCGWindowListOptionOnScreenOnly,
-        kCGNullWindowID,
-        CGEventGetIntegerValueField,
-        kCGKeyboardEventKeycode
+        CGEventTapCreate, kCGHeadInsertEventTap,
+        kCGEventKeyDown, CGEventGetIntegerValueField,
+        kCGKeyboardEventKeycode, CGEventTapEnable,
+        CFMachPortCreateRunLoopSource, CFRunLoopAddSource,
+        CFRunLoopRun
     )
+    FN_KEYCODES = {63, 64, 296}  # globe/fn variants
 
-    ###############################
-    #   FN/Globe → Language Flip #
-    ###############################
+    current_lang = read_system_language()
 
-    current_lang = "EN"
-
-    FN_KEYCODES = {63, 64, 296}   # FN / Globe key variants
-
-    def event_callback(proxy, event_type, event, refcon):
+    def key_event_callback(proxy, event_type, event, refcon):
         global current_lang
+
         if event_type == kCGEventKeyDown:
             keycode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode)
+
             if keycode in FN_KEYCODES:
-                current_lang = "HE" if current_lang == "EN" else "EN"
-                print("Language switched manually →", current_lang)
+                dprint("FN/Globe PRESSED! => user intends to switch language")
+
+                # read NEW lang from system (after OS processed FN)
+                time.sleep(0.05)
+                new_lang = read_system_language()
+
+                dprint("System language AFTER FN:", new_lang)
+
+                current_lang = new_lang
+
         return event
 
-    def start_mac_listener():
+    def start_fn_listener():
+        dprint("Starting FN listener…")
+
         mask = (1 << kCGEventKeyDown)
         tap = CGEventTapCreate(
-            0,  # HID event tap
+            0,  # HID tap
             kCGHeadInsertEventTap,
-            0,
-            mask,
-            event_callback,
+            0, mask,
+            key_event_callback,
             None
         )
-        source = CFMachPortCreateRunLoopSource(None, tap, 0)
+        src = CFMachPortCreateRunLoopSource(None, tap, 0)
         CFRunLoopAddSource(
             __import__("Quartz").CFRunLoopGetCurrent(),
-            source,
-            __import__("Quartz").kCFRunLoopDefaultMode,
+            src,
+            __import__("Quartz").kCFRunLoopDefaultMode
         )
         CGEventTapEnable(tap, True)
-        print("macOS FN listener started...")
         CFRunLoopRun()
 
-    ##########################################
-    #   Get Active Window (Quartz Based)     #
-    ##########################################
+
+##############################################################
+#                         Window Detection                   #
+##############################################################
+if IS_MAC:
+    from Quartz import (
+        CGWindowListCopyWindowInfo, kCGWindowListOptionOnScreenOnly,
+        kCGNullWindowID
+    )
 
     def get_active_window_info():
         windows = CGWindowListCopyWindowInfo(
@@ -196,65 +124,41 @@ if IS_MAC:
             if w.get("kCGWindowLayer") == 0:
                 return {
                     "process_name": w.get("kCGWindowOwnerName", "UNKNOWN"),
-                    "window_title": w.get("kCGWindowName", ""),
+                    "window_title": w.get("kCGWindowName", "")
                 }
         return {"process_name": "UNKNOWN", "window_title": ""}
 
-    def get_current_keyboard_language():
-        return current_lang
-
-    def switch_language():
-        pass
-
-    def set_language(target):
-        pass
-
 
 ##############################################################
-#                      MAIN MONITOR LOOP                     #
+#                         Monitor Loop                       #
 ##############################################################
+def monitor():
+    global current_lang
+    import json
 
-def monitor_language_switching(interval=0.2, save_interval=60):
-    state = load_state()
-    last_save = time.time()
-    prev = ""
-
-    print("Monitoring started...\n")
+    dprint("Monitor started.")
+    state = {}
+    prev_lang = current_lang
 
     while True:
+        # check if system language changed not via FN
+        real_lang = read_system_language()
+        if real_lang != current_lang:
+            dprint("Language changed WITHOUT FN:", current_lang, "→", real_lang)
+            current_lang = real_lang
+
+        # detect window
         info = get_active_window_info()
-        current_process = info["process_name"]
-        current_lang = get_current_keyboard_language()
-        print(current_process)
-        print(current_lang)
-        print(state)
-        similar = find_similar_key(current_process, state)
-        if similar:
-            current_process = similar
+        dprint("Window:", info["process_name"])
 
-        if current_process not in state:
-            state[current_process] = {"EN": 0, "HE": 0, "last_lang": current_lang}
-
-        if current_process != prev:
-            prev = current_process
-
-        if state[current_process]["last_lang"] != current_lang:
-            state[current_process][current_lang] += 1
-            state[current_process]["last_lang"] = current_lang
-
-        if time.time() - last_save >= save_interval:
-            save_state(state)
-            last_save = time.time()
-
-        time.sleep(interval)
+        time.sleep(0.15)
 
 
 ##############################################################
-#                           RUN                              #
+#                            RUN                             #
 ##############################################################
-
 if IS_MAC:
     import threading
-    threading.Thread(target=start_mac_listener, daemon=True).start()
+    threading.Thread(target=start_fn_listener, daemon=True).start()
 
-monitor_language_switching()
+monitor()
