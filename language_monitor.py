@@ -149,7 +149,9 @@ def monitor():
 
         # detect window
         info = get_active_window_info()
-        dprint("Window:", info["process_name"])
+
+        # 🔥 LOG YOU ASKED FOR
+        dprint("Window:", info["process_name"], "| Title:", info["window_title"], "| Lang:", current_lang)
 
         time.sleep(0.15)
 
