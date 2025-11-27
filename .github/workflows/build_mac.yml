@@ -2,7 +2,7 @@ name: Build macOS App
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
@@ -10,23 +10,25 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repo
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install py2app with fixes
+      - name: Install Dependencies
         run: |
           pip install --upgrade pip
-          pip install psutil keyboard pyobjc
-          pip install py2app
+          pip install psutil keyboard pyobjc py2app
 
-      - name: Build .app
+      - name: Build macOS App
         run: |
           python3 setup.py py2app
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Built App
+        uses: actions/upload-artifact@v4
         with:
           name: LanguageMonitor-macOS
           path: dist/
