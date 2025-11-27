@@ -8,7 +8,7 @@ import json
 import os
 
 
-STATE_FILE = "language_state.json"
+STATE_FILE = "../language_state.json"
 
 def load_state():
     """
