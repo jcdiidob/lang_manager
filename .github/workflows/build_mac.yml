@@ -10,24 +10,23 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install Dependencies
+      - name: Install py2app with fixes
         run: |
-          pip install py2app psutil keyboard
+          pip install --upgrade pip
+          pip install psutil keyboard pyobjc
+          pip install py2app
 
-      - name: Build macOS App
+      - name: Build .app
         run: |
           python3 setup.py py2app
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: LanguageMonitor-macOS
           path: dist/

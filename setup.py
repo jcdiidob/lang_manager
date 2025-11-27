@@ -3,14 +3,16 @@ from setuptools import setup
 APP = ['language_monitor.py']
 DATA_FILES = []
 OPTIONS = {
-    'argv_emulation': True,  # לא חובה — אם אין אז למחוק שורה זו
+    'argv_emulation': True,
+    'packages': ['psutil', 'keyboard'],
+    'includes': ['AppKit', 'Foundation'],
     'plist': {
         'CFBundleName': 'Language Monitor',
         'CFBundleDisplayName': 'Language Monitor',
         'CFBundleVersion': '1.0',
-        'CFBundleIdentifier': 'com.yourname.languagemonitor',
-        'LSUIElement': True,  # מריץ כ-Background App ללא אייקון דוק
-    },
+        'CFBundleIdentifier': 'com.user.languagemonitor',
+        'LSUIElement': True,
+    }
 }
 
 setup(

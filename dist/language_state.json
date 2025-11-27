@@ -5,19 +5,19 @@
         "last_lang": "EN"
     },
     "explorer.exe": {
-        "EN": 3,
-        "HE": 3,
+        "EN": 4,
+        "HE": 4,
         "last_lang": "EN"
     },
     "chrome.exe": {
-        "EN": 5,
-        "HE": 9,
+        "EN": 6,
+        "HE": 10,
         "last_lang": "EN"
     },
     "pycharm64.exe": {
-        "EN": 3,
+        "EN": 4,
         "HE": 2,
-        "last_lang": "HE"
+        "last_lang": "EN"
     },
     "mstsc.exe": {
         "EN": 0,
@@ -45,8 +45,8 @@
         "last_lang": "EN"
     },
     "SnippingTool.exe": {
-        "EN": 0,
-        "HE": 1,
+        "EN": 1,
+        "HE": 2,
         "last_lang": "HE"
     }
 }
