@@ -27,7 +27,7 @@ jobs:
           python3 setup.py py2app
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: LanguageMonitor-macOS
           path: dist/

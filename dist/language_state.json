@@ -11,8 +11,8 @@
     },
     "chrome.exe": {
         "EN": 4,
-        "HE": 8,
-        "last_lang": "EN"
+        "HE": 9,
+        "last_lang": "HE"
     },
     "pycharm64.exe": {
         "EN": 3,
@@ -35,11 +35,16 @@
         "last_lang": "HE"
     },
     "ShellExperienceHost.exe": {
-        "EN": 0,
+        "EN": 1,
         "HE": 0,
-        "last_lang": "HE"
+        "last_lang": "EN"
     },
     "LockApp.exe": {
+        "EN": 0,
+        "HE": 0,
+        "last_lang": "EN"
+    },
+    "SnippingTool.exe": {
         "EN": 0,
         "HE": 0,
         "last_lang": "EN"
