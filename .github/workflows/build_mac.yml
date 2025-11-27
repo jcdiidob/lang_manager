@@ -22,7 +22,6 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install psutil keyboard pyobjc py2app
-          python3 -m pip install Quartz
 
       - name: Build macOS App with py2app
         run: |
