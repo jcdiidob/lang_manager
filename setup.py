@@ -46,11 +46,7 @@ OPTIONS = {
         'Foundation',
         'AppKit',
     ],
-    'frameworks': [
-        '/System/Library/Frameworks/Quartz.framework',
-        '/System/Library/Frameworks/ApplicationServices.framework',
-        '/System/Library/Frameworks/CoreGraphics.framework',
-    ],
+    'frameworks': [],
     'plist': {
         'CFBundleName': 'Language Monitor',
         'CFBundleDisplayName': 'Language Monitor',
