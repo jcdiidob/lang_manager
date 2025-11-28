@@ -18,13 +18,23 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Dependencies
+      - name: Install Dependencies (pyobjc + py2app)
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install psutil keyboard pyobjc py2app
+          python3 -m pip install --upgrade pip wheel setuptools
+          python3 -m pip install psutil
+          
+          # Install ALL necessary pyobjc frameworks
+          python3 -m pip install pyobjc-core
+          python3 -m pip install pyobjc-framework-Quartz
+          python3 -m pip install pyobjc-framework-Cocoa
+          python3 -m pip install pyobjc-framework-ApplicationServices
+
+          # Install py2app
+          python3 -m pip install py2app
 
       - name: Build macOS App with py2app
         run: |
+          export MACOSX_DEPLOYMENT_TARGET=11.0
           python3 setup.py py2app
 
       - name: Upload Built App
