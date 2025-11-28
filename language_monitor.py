@@ -343,8 +343,8 @@ def detect_lang_from_char(ch):
 
 def extract_char_from_event(event):
     """Reliable, py2app-compatible extraction of typed character."""
-    buffer = bytearray(8)
-    length = CGEventKeyboardGetUnicodeString(event, 4, buffer, None)
+    buffer = bytearray(8)# buffer הוא bytearray(8) או כל גודל אחר שציינת
+    length = CGEventKeyboardGetUnicodeString(event, buffer, None)
 
     if length > 0:
         try:
