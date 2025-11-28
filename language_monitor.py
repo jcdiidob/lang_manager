@@ -320,6 +320,7 @@ import threading
 # ... וכן הלאה
 
 import time
+from AppKit import NSEvent
 
 from Quartz import (
     CGEventTapCreate, kCGEventKeyDown, kCGHeadInsertEventTap,
@@ -342,28 +343,20 @@ def detect_lang_from_char(ch):
 
 
 def extract_char_from_event(event):
-    """Reliable, py2app-compatible extraction of typed character."""
-    # הכנת הבאפר (4 תווים של UTF-16)
-    buffer = bytearray(8)
-
-    # הקריאה המתוקנת: 4 ארגומנטים בסדר הנכון
-    # Arg 1: Event
-    # Arg 2: Max Length (int)
-    # Arg 3: Actual Length Pointer (None is fine here)
-    # Arg 4: The Buffer (bytearray)
-    CGEventKeyboardGetUnicodeString(event, len(buffer), None, buffer)
-
+    """Safe extraction using NSEvent (avoids PyObjC C-API bridge issues)."""
     try:
-        # בדיקה אם הבאפר ריק (האם הבייט הראשון הוא 0)
-        # מכיוון שהפונקציה לא מחזירה אורך, נבדוק את התוכן
-        if buffer[0] == 0 and buffer[1] == 0:
-            return None
+        # המרת אירוע ה-C הנמוך (CGEvent) לאובייקט Objective-C גבוה (NSEvent)
+        ns_event = NSEvent.eventWithCGEvent_(event)
 
-        # המרה חזרה לתו (לוקחים את 2 הבייטים הראשונים לתו אחד)
-        return buffer[:2].decode("utf-16le")
-    except:
+        if ns_event:
+            # שליפה ישירה של התווים (Python string)
+            return ns_event.characters()
+
+    except Exception as e:
+        print(f"Error extracting char: {e}")
         return None
 
+    return None
 def key_callback(proxy, etype, event, refcon):
     global current_lang
 
