@@ -343,15 +343,26 @@ def detect_lang_from_char(ch):
 
 def extract_char_from_event(event):
     """Reliable, py2app-compatible extraction of typed character."""
-    buffer = bytearray(8)# buffer הוא bytearray(8) או כל גודל אחר שציינת
-    length = CGEventKeyboardGetUnicodeString(event, len(buffer), buffer, None)
-    if length > 0:
-        try:
-            return buffer[:2].decode("utf-16le")
-        except:
-            return None
-    return None
+    # הכנת הבאפר (4 תווים של UTF-16)
+    buffer = bytearray(8)
 
+    # הקריאה המתוקנת: 4 ארגומנטים בסדר הנכון
+    # Arg 1: Event
+    # Arg 2: Max Length (int)
+    # Arg 3: Actual Length Pointer (None is fine here)
+    # Arg 4: The Buffer (bytearray)
+    CGEventKeyboardGetUnicodeString(event, len(buffer), None, buffer)
+
+    try:
+        # בדיקה אם הבאפר ריק (האם הבייט הראשון הוא 0)
+        # מכיוון שהפונקציה לא מחזירה אורך, נבדוק את התוכן
+        if buffer[0] == 0 and buffer[1] == 0:
+            return None
+
+        # המרה חזרה לתו (לוקחים את 2 הבייטים הראשונים לתו אחד)
+        return buffer[:2].decode("utf-16le")
+    except:
+        return None
 
 def key_callback(proxy, etype, event, refcon):
     global current_lang
