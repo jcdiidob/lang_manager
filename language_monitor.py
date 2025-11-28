@@ -283,10 +283,42 @@
 #     threading.Thread(target=start_mac_key_listener, daemon=True).start()
 #
 # monitor_loop()
-# מפעילים מאזין
 
+
+# פתרון זמני ל-ModuleNotFoundError: No module named 'imp'
+try:
+    import imp
+except ImportError:
+    # imp הוסר ב-Python 3.12. המבנה מחדש באמצעות importlib
+    import importlib.util
+    import sys
+
+
+    # יצירת מודול imp דמה כדי לאפשר לספריות ישנות יותר לעבוד
+    # (הפונקציות הנפוצות ביותר הן load_module)
+    class ImpMock:
+        @staticmethod
+        def load_module(name, file, pathname, description):
+            spec = importlib.util.spec_from_file_location(name, pathname)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[name] = module
+            spec.loader.exec_module(module)
+            return module
+
+        # פונקציות אחרות שעלולות להיות חסרות:
+        PY_SOURCE = 1
+        PY_COMPILED = 2
+        C_EXTENSION = 3
+        # הוסף את ה-ImpMock למערכת המודולים של Python
+
+
+    sys.modules['imp'] = ImpMock()
+
+# עכשיו הריצה של הקוד שלך תמשיך כרגיל
 import sys
 import threading
+# ... וכן הלאה
+
 import time
 
 from Quartz import (
