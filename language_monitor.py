@@ -317,59 +317,58 @@ except ImportError:
 # עכשיו הריצה של הקוד שלך תמשיך כרגיל
 import sys
 import threading
-# ... וכן הלאה
-
 import time
 from AppKit import NSEvent
 
+# הוספנו את TIS... לרשימת הייבוא
 from Quartz import (
     CGEventTapCreate, kCGEventKeyDown, kCGHeadInsertEventTap,
-    CGEventKeyboardGetUnicodeString, CGEventTapEnable,
-    CFMachPortCreateRunLoopSource, CFRunLoopAddSource, CFRunLoopRun
+    CGEventTapEnable, CFMachPortCreateRunLoopSource,
+    CFRunLoopAddSource, CFRunLoopRun,
+    TISCopyCurrentKeyboardInputSource,
+    TISGetInputSourceProperty,
+    kTISPropertyInputSourceID
 )
 
 current_lang = None   # נקבע בפועל מהקלדה
 
 
-def detect_lang_from_char(ch):
-    """Returns 'HE' or 'EN' based on typed character."""
-    # Hebrew Unicode block
-    if '\u0590' <= ch <= '\u05FF':
-        return "HE"
-    # English letters
-    if ('a' <= ch <= 'z') or ('A' <= ch <= 'Z'):
-        return "EN"
-    return None
-
-
-def extract_char_from_event(event):
-    """Safe extraction using NSEvent (avoids PyObjC C-API bridge issues)."""
+def check_current_keyboard_layout():
+    """Bypasses character mapping and asks macOS for the active Keyboard ID."""
     try:
-        # המרת אירוע ה-C הנמוך (CGEvent) לאובייקט Objective-C גבוה (NSEvent)
-        ns_event = NSEvent.eventWithCGEvent_(event)
+        # שליפת אובייקט המקלדת הפעילה כרגע במערכת
+        source = TISCopyCurrentKeyboardInputSource()
 
-        if ns_event:
-            # שליפה ישירה של התווים (Python string)
-            return ns_event.characters()
+        # שליפת המזהה (ID) של המקלדת (למשל: 'com.apple.keylayout.Hebrew')
+        source_id = TISGetInputSourceProperty(source, kTISPropertyInputSourceID)
+
+        # המרה ל-String רגיל (לפעמים זה מגיע כאובייקט CFString)
+        source_id_str = str(source_id)
+
+        if "Hebrew" in source_id_str:
+            return "HE"
+        else:
+            # כל מה שהוא לא עברית, נניח כרגע שהוא אנגלית (או תוסיף עוד תנאים)
+            return "EN"
 
     except Exception as e:
-        print(f"Error extracting char: {e}")
+        print(f"Error checking layout: {e}")
         return None
 
-    return None
+
 def key_callback(proxy, etype, event, refcon):
     global current_lang
 
     if etype == kCGEventKeyDown:
-        ch = extract_char_from_event(event)
-        if ch:
-            lang = detect_lang_from_char(ch)
-            if lang:
-                current_lang = lang
-                print("[DEBUG] Current macOS lang →", current_lang)
+        # בכל לחיצה, נבדוק איזו מקלדת פעילה במערכת
+        lang = check_current_keyboard_layout()
+
+        if lang:
+            current_lang = lang
+            # נדפיס רק לצורך דיבוג
+            # print(f"[DEBUG] Layout Detected: {current_lang}")
 
     return event
-
 
 def start_language_detector():
     """Starts macOS keyboard language listener."""
